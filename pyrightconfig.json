@@ -1,0 +1,4 @@
+{
+  "extraPaths": ["servidor"],
+  "exclude": ["**/__pycache__", "landing-page"]
+}

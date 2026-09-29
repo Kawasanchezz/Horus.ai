@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hórus AI — Código, Revisão &amp; Segurança</title>
+  <meta name="description" content="Hórus AI — sua IA de TI: programação, revisão de código, debugging e segurança de aplicações.">
+
+  <!-- Ícone da aba. O PNG do logo é um falcão BRANCO sobre transparente, que
+       sumiria numa aba de tema claro — por isso estes arquivos têm o fundo
+       escuro embutido, gerados a partir do logo. -->
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/images/favicon-32.png">
+  <link rel="apple-touch-icon" href="assets/images/apple-touch-icon.png">
+
+  <!-- A fonte Inter é auto-hospedada em assets/fonts/ e declarada via
+       @font-face no style.css. Nenhuma requisição sai para terceiros. -->
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preload" href="assets/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+</head>
+
+<body>
+  <!-- Barra da conversa anônima. Fica FORA do <main> de propósito: no Claude
+       ela é o chrome da janela, uma faixa acima do painel — não uma barra
+       dentro do app. O fantasma flutua (keyframes anonFloat no style.css). -->
+  <header class="anon-bar" id="anonBar" hidden>
+    <i data-lucide="ghost" class="anon-bar__icon"></i>
+    <span class="anon-bar__label">Chat anônimo</span>
+    <button class="anon-bar__close" id="anonClose" title="Sair do chat anônimo"
+            aria-label="Sair do chat anônimo">
+      <i data-lucide="x"></i>
+    </button>
+  </header>
+
+  <!-- ── MAIN GLASS CONTAINER ── -->
+  <main class="app">
+    <!-- Background effects (noise + radial blurs) -->
+    <div class="bg-effects" aria-hidden="true">
+      <div class="bg-blur bg-blur--pink"></div>
+      <div class="bg-blur bg-blur--cyan"></div>
+      <div class="bg-noise"></div>
+    </div>
+
+    <!-- ── SIDEBAR ──
+         Só entram itens que existem de verdade no Hórus: nova conversa,
+         início, configurações e o histórico salvo no navegador. -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar__head">
+        <button class="sidebar__brand" id="logoBtn" title="Início">
+          <span class="sidebar__wordmark">Hórus</span>
+        </button>
+        <button class="sidebar__collapse" id="sidebarToggle" title="Recolher menu"
+                aria-label="Recolher menu" aria-expanded="true">
+          <i data-lucide="panel-left"></i>
+        </button>
+      </div>
+
+      <button class="side-new" id="newChatBtn" title="Nova conversa">
+        <i data-lucide="plus"></i><span>Nova conversa</span>
+      </button>
+
+      <p class="sidebar__section">Conversas</p>
+      <div class="sidebar__list" id="historyList"></div>
+
+      <!-- Rodapé no lugar onde o Claude mostra a conta. Como o Hórus não tem
+           login, a linha identifica o app e o menu reúne as ações reais que
+           existem: configurações, status do servidor e apagar histórico. -->
+      <div class="sidebar__foot">
+        <div class="side-menu" id="accountMenu" hidden role="menu">
+          <button class="side-menu__item" id="menuSettings" role="menuitem">
+            <i data-lucide="settings"></i><span>Configurações</span>
+          </button>
+          <button class="side-menu__item" id="menuStatus" role="menuitem" title="Verificar novamente">
+            <i data-lucide="activity"></i><span>Servidor</span>
+            <span class="side-menu__meta"><span class="status-dot" id="statusDot"></span><span id="serverStatus">…</span></span>
+          </button>
+          <div class="side-menu__sep"></div>
+          <button class="side-menu__item side-menu__item--danger" id="menuClear" role="menuitem">
+            <i data-lucide="trash-2"></i><span>Apagar histórico</span>
+          </button>
+        </div>
+
+        <button class="side-account" id="accountBtn" aria-expanded="false" aria-haspopup="menu" title="Menu">
+          <span class="side-account__name">Hórus <span class="muted">· Local</span></span>
+          <i data-lucide="chevron-up" class="side-account__chev"></i>
+        </button>
+      </div>
+    </aside>
+
+    <!-- véu que fecha a sidebar por clique fora (só no mobile) -->
+    <div class="sidebar-veil" id="sidebarVeil" hidden></div>
+
+    <!-- Único elemento visível com a sidebar fechada: o quadradinho que
+         a expande. Fica escondido enquanto ela está aberta. -->
+    <button class="sidebar-open" id="sidebarOpen" title="Abrir menu" aria-label="Abrir menu">
+      <i data-lucide="panel-left"></i>
+    </button>
+
+    <!-- Conversa anônima. Enquanto ativo, saveCurrent() não grava nada no
+         localStorage. Só aparece na tela inicial: não dá para tornar anônima
+         uma conversa que já começou. -->
+    <button class="anon-btn" id="incognitoBtn" title="Conversa anônima"
+            aria-label="Conversa anônima" aria-pressed="false">
+      <i data-lucide="ghost"></i>
+    </button>
+
+    <!-- ── HERO (estado inicial) ── -->
+    <section class="hero" id="hero">
+      <h1 class="hero__headline" id="headlineNormal">
+        <span class="hl-line">Every codebase has a blind spot.</span>
+        <span class="hl-line">Hórus sees it.</span>
+      </h1>
+
+      <h1 class="hero__headline" id="headlineAnon" hidden>
+        <span class="hl-line">Você está anônimo.</span>
+      </h1>
+
+      <!-- ── ESFERA 3D (imagem) ── -->
+      <div class="orb-stage">
+        <div class="orb-float">
+          <img id="orb" class="orb-img" src="assets/images/logo-horus.png" alt="Logo do Hórus: um falcão estilizado" draggable="false">
+        </div>
+      </div>
+    </section>
+
+    <!-- ── CHAT (aparece ao conversar) ── -->
+    <section class="chat" id="chat" hidden>
+      <div class="chat__scroll">
+        <div class="messages" id="messages"></div>
+        <div id="chatAnchor"></div>
+      </div>
+    </section>
+
+    <!-- ── PROMPT AREA ── -->
+    <section class="prompt">
+      <div class="prompt__box">
+        <div class="attach-tags" id="attachTags"></div>
+
+        <textarea id="promptInput" rows="1" maxlength="4000" placeholder="Ask me anything..."></textarea>
+
+        <div class="prompt__controls">
+          <div class="prompt__controls-left">
+            <button class="ctrl-btn" id="attachBtn"><i data-lucide="paperclip"></i> Attach</button>
+          </div>
+
+          <div class="prompt__controls-right">
+            <button class="ctrl-btn ctrl-btn--send" id="sendBtn"><i data-lucide="send"></i> Send</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Promessa deliberadamente restrita ao que dá para garantir: o que
+           acontece no NAVEGADOR. Nada é afirmado sobre o que a Groq faz com a
+           mensagem depois — isso não está sob controle deste projeto. -->
+      <p class="anon-note" id="anonNote" hidden>
+        Esta conversa não será salva no histórico deste navegador.
+        <br>As mensagens continuam sendo enviadas ao servidor para gerar a resposta.
+      </p>
+
+      <!-- Atalhos DEPOIS da caixa de texto, tanto visualmente quanto no DOM:
+           assim o Tab chega primeiro no campo de digitar (a ação principal) e
+           só depois nos atalhos, em vez de obrigar a atravessar 5 chips. -->
+      <div class="prompt__quick" id="quickActions">
+        <button class="chip" data-prompt="Me ajude a encontrar e corrigir um bug no meu código.">
+          <i data-lucide="bug"></i> Debug
+        </button>
+        <button class="chip" data-prompt="Faça uma revisão do meu código com foco em Clean Code e segurança.">
+          <i data-lucide="file-code"></i> Code Review
+        </button>
+        <button class="chip" data-prompt="Explique um conceito de programação de forma didática, com exemplos.">
+          <i data-lucide="lightbulb"></i> Explicar
+        </button>
+        <button class="chip" data-prompt="Quais vulnerabilidades do OWASP Top 10 eu devo verificar no meu projeto?">
+          <i data-lucide="shield-check"></i> Segurança
+        </button>
+        <button class="chip" data-prompt="Escreva testes unitários de exemplo para uma função, seguindo boas práticas.">
+          <i data-lucide="flask-conical"></i> Testes
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ── MODAL DE CONFIGURAÇÕES ── -->
+  <div class="modal" id="settingsModal" hidden>
+    <div class="modal__card">
+      <div class="modal__head">
+        <h2>Configurações</h2>
+        <button class="icon-btn" id="settingsClose" title="Fechar" aria-label="Fechar configurações"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal__body">
+        <!-- O status do servidor e o "apagar histórico" saíram daqui: agora
+             vivem no menu do rodapé da sidebar, sem duplicar ação. -->
+
+        <h3 class="settings__group">Preferências</h3>
+
+        <div class="setting-row">
+          <div><strong>Aparência</strong></div>
+          <div class="segmented" id="themeSeg" role="radiogroup" aria-label="Aparência">
+            <button type="button" data-theme="system" title="Sistema" aria-label="Sistema"><i data-lucide="monitor"></i></button>
+            <button type="button" data-theme="light" title="Claro" aria-label="Claro"><i data-lucide="sun"></i></button>
+            <button type="button" data-theme="dark" title="Escuro" aria-label="Escuro"><i data-lucide="moon"></i></button>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div><strong>Fonte do chat</strong></div>
+          <select id="fontSelect" class="select" aria-label="Fonte do chat">
+            <option value="">Inter</option>
+            <option value="georgia">Georgia</option>
+            <option value="verdana">Verdana</option>
+            <option value="mono">Monoespaçada</option>
+          </select>
+        </div>
+
+        <div class="setting-row">
+          <div>
+            <strong>Movimento</strong>
+            <p class="muted">Reduzir animações da interface.</p>
+          </div>
+          <div class="segmented" id="motionSeg" role="radiogroup" aria-label="Movimento">
+            <button type="button" data-motion="system">Sistema</button>
+            <button type="button" data-motion="reduced">Reduzido</button>
+          </div>
+        </div>
+
+        <h3 class="settings__group">Modelo</h3>
+
+        <div class="setting-row">
+          <div>
+            <strong>Modelo da IA</strong>
+            <p class="muted">Vale para as próximas mensagens.</p>
+          </div>
+          <select id="modelSelect" class="select" aria-label="Modelo da IA">
+            <option value="">Padrão do servidor</option>
+          </select>
+        </div>
+
+        <p class="muted">As conversas ficam salvas só no seu navegador.</p>
+      </div>
+      <div class="modal__footer">
+        <button class="btn btn--ghost" id="settingsDone">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MODAL DE CONFIRMAÇÃO (vidro, reutilizável) ── -->
+  <div class="modal" id="confirmModal" hidden>
+    <div class="modal__card modal__card--sm">
+      <div class="modal__head">
+        <h2 id="confirmTitle">Confirmar</h2>
+        <button class="icon-btn" id="confirmClose" title="Fechar" aria-label="Fechar"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal__body">
+        <p id="confirmMsg" class="muted"></p>
+      </div>
+      <div class="modal__footer">
+        <button class="btn btn--ghost" id="confirmCancel">Cancelar</button>
+        <button class="btn btn--danger" id="confirmOk"><i data-lucide="trash-2"></i> Apagar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Menu "⋮" das conversas. Fica FORA da sidebar de propósito: a lista tem
+       overflow, e um menu dentro dela seria cortado. Posicionado por JS.
+       Só entram ações que existem de verdade: fixar, renomear e apagar
+       (não há "não lida", "projeto", "grupo" nem URL por conversa). -->
+  <div class="chat-menu" id="chatMenu" hidden role="menu">
+    <button class="chat-menu__item" data-act="pin" role="menuitem">
+      <i data-lucide="pin"></i><span id="chatMenuPinLabel">Fixar</span><kbd>P</kbd>
+    </button>
+    <button class="chat-menu__item" data-act="rename" role="menuitem">
+      <i data-lucide="pencil"></i><span>Mudar o nome</span><kbd>R</kbd>
+    </button>
+    <div class="chat-menu__sep"></div>
+    <button class="chat-menu__item chat-menu__item--danger" data-act="delete" role="menuitem">
+      <i data-lucide="trash-2"></i><span>Apagar</span><kbd>D</kbd>
+    </button>
+  </div>
+
+  <!-- input de arquivo (Attach) + toast -->
+  <input type="file" id="fileInput" hidden
+    accept=".txt,.md,.markdown,.js,.ts,.jsx,.tsx,.py,.json,.html,.css,.java,.c,.cpp,.cs,.go,.rs,.rb,.php,.sql,.sh,.yml,.yaml,.xml">
+  <div class="toast" id="toast" hidden></div>
+
+  <!-- libs hospedadas localmente (js/vendor/): evita depender de CDN externo.
+       Antes carregávamos do jsdelivr com SRI; se o CDN estivesse bloqueado/fora do
+       ar (rede corporativa, ad-blocker, instabilidade), os ícones (só-ícone, sem
+       texto, ex. o "...") ficavam em branco. Hospedando local, o app sempre
+       funciona 100% offline do CDN. -->
+  <script src="js/vendor/lucide.min.js"></script>
+  <script src="js/vendor/marked.min.js"></script>
+  <script src="js/vendor/purify.min.js"></script>
+  <script src="js/script.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,8 @@
+# Nunca envie segredos locais nem o launcher de dev no upload do `vercel deploy`.
+# Em producao as variaveis vem do painel da Vercel, nao de arquivo .env.
+.env
+.env.*
+!.env.example
+servidor/.env
+servidor/servidor_seguro.py
+.git
